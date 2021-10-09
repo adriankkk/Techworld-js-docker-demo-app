@@ -1,0 +1,94 @@
+### RUN TWO containers : mongodb and mongo-express [at http://0.0.0.0:8081] in mongo-network network ###
+########################################################################################################
+
+docker pull mongo-express # pobierz oba image
+docker network create mongo-network # stworz dedykowana siec
+
+# 1 - run mongo db with env variables, --name nazwa kontenera + nazwa sieci
+docker run -p 27017:27017 -d \
+    -e MONGO_INITDB_ROOT_USERNAME=admin \
+    -e MONGO_INITDB_ROOT_PASSWORD=password \
+    --name mongodb \
+    --net mongo-network \
+mongo
+
+# 2 - run mongo express container with connection to mongo-db
+docker run -d \
+-p 8081:8081 \
+-e ME_CONFIG_MONGODB_ADMINUSERNAME=admin \
+-e ME_CONFIG_MONGODB_ADMINPASSWORD=password \
+-e ME_CONFIG_MONGODB_SERVER=mongodb \
+--net mongo-network \
+--name mongo-express \
+mongo-express
+
+# 3 mongo-express listening at http://0.0.0.0:8081, mongodb connected
+(node:8) [MONGODB DRIVER] Warning: Current Server Discovery and Monitoring engine is deprecated, and will be removed in a future version. To use the new Server Discover and Monitoring engine, pass option { useUnifiedTopology: true } to the MongoClient constructor.
+Mongo Express server listening at http://0.0.0.0:8081
+Server is open to allow connections from anyone (0.0.0.0)
+basicAuth credentials are "admin:pass", it is recommended you change this in your config.js!
+
+# npm install
+Step 6: Start your nodejs application locally - go to app directory of project
+npm install # uses package.json
+{
+  "name": "developing-with-docker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "Nana Janashia",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "mongodb": "^3.3.3"
+  }
+}
+
+node server.js
+Step 7: Access you nodejs application UI from browser
+http://localhost:3000
+
+### DOCKER-COMPOSE : structured file with docker commands to RUN TWO containers : mongodb and mongo-express [at http://0.0.0.0:8081] in mongo-network network ###
+#####################################################################################################
+apt  install docker-compose # install docker-compose first
+docker-compose -v # check version
+
+docker-compose -f docker-compose.yaml up # [no volume in file !] file is in Techworld-js-docker-demo-ap folder0
+
+### DOCKERFILE : blueprint for creating docker images ### simulate what JENKINS do : build js.APP IMAGE and push it to docker repository ###
+#####################################################################################################
+
+# FROM [node] // first line of dockerfile // node will be installed inside our IMAGE
+
+docker build -t moja-app:1.0 . # buduj image na podstawie Dockerfile
+# Dockerfile#
+FROM node:13-alpine
+ENV MONGO_DB_USERNAME=admin \
+    MONGO_DB_PWD=password
+RUN mkdir -p /home/app
+COPY ./app /home/app
+# set default dir so that next commands executes in /home/app dir
+WORKDIR /home/app
+# will execute npm install in /home/app because of WORKDIR
+RUN npm install
+# no need for /home/app/server.js because of WORKDIR
+CMD ["node", "server.js"]
+
+docker run moja-app:1.0 #app listening on port 3000!
+
+### Treescale : publish local image to public repository ###
+#####################################################################################################
+docker login repo.treescale.com #akuczuraksp | abc123abc
+docker tag moja-app:1.0 repo.treescale.com/akuczuraksp/moja-app:latest
+#repo.treescale.com/akuczuraksp/moja-app   latest      7ee488d6aa51   2 hours ago     130MB
+
+docker tag moja-app:1.1 repo.treescale.com/akuczuraksp/moja-app:1.1
+#repo.treescale.com/akuczuraksp/moja-app   latest      7ee488d6aa51   2 hours ago     130MB
+#repo.treescale.com/akuczuraksp/moja-app   1.1         fff808b05b23   About a minute ago   130MB
+
+docker push repo.treescale.com/akuczuraksp/latest # The push refers to repository [repo.treescale.com/akuczuraksp/moja-app]
